@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 
 const LogAnalyzer = () => {
-  const [logContent, setLogContent] = useState([]);
+  const [logContent, setLogContent] = useState("");
   const [exceptions, setExceptions] = useState([]);
-  const logRef = useRef(null);
+  const [expanded, setExpanded] = useState({});
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
@@ -12,38 +12,40 @@ const LogAnalyzer = () => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target.result;
-      const lines = text.split("\n").map((line, index) => ({ number: index + 1, text: line }));
-      setLogContent(lines);
-      analyzeLog(lines);
+      setLogContent(text);
+      analyzeLog(text);
     };
     reader.readAsText(file);
   };
 
-  const analyzeLog = (lines) => {
+  const analyzeLog = (text) => {
+    const lines = text.split("\n");
     const extractedExceptions = [];
     let currentException = null;
+    let lineNumber = 1;
 
-    lines.forEach((lineObj) => {
-      const { number, text } = lineObj;
-      if (text.startsWith("####")) {
+    lines.forEach((line) => {
+      if (line.startsWith("####")) {
+        lineNumber++;
         return; // Ignore unimportant lines
       }
-      if (text.startsWith("com.swisslog")) {
+      if (line.startsWith("com.swisslog")) {
         if (currentException) {
           extractedExceptions.push(currentException);
         }
         currentException = {
-          startLine: number,
-          message: text,
+          message: line,
           stackTrace: [],
+          lineNumber: lineNumber,
         };
-      } else if (text.includes("at") && currentException) {
-        currentException.stackTrace.push(text);
-      } else if (text.startsWith("Caused by") && currentException) {
-        currentException.causedBy = text;
+      } else if (line.includes("at") && currentException) {
+        currentException.stackTrace.push(line);
+      } else if (line.startsWith("Caused by") && currentException) {
+        currentException.causedBy = line;
         extractedExceptions.push(currentException);
         currentException = null;
       }
+      lineNumber++;
     });
 
     if (currentException) {
@@ -53,13 +55,11 @@ const LogAnalyzer = () => {
     setExceptions(extractedExceptions);
   };
 
-  const scrollToLine = (lineNumber) => {
-    if (logRef.current) {
-      const lineElement = document.getElementById(`line-${lineNumber}`);
-      if (lineElement) {
-        lineElement.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }
+  const toggleExpand = (index) => {
+    setExpanded((prev) => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
   };
 
   return (
@@ -70,20 +70,36 @@ const LogAnalyzer = () => {
         <h2>Exceptions Found:</h2>
         <ul>
           {exceptions.map((ex, index) => (
-            <li key={index} style={{ color: "red", cursor: "pointer" }} onClick={() => scrollToLine(ex.startLine)}>
-              <strong>Line {ex.startLine}: {ex.message}</strong>
-              <pre style={{ color: "gray" }}>{ex.stackTrace.join("\n")}</pre>
+            <li key={index} style={{ color: "red" }}>
+              <strong>
+                <a
+                  href={`#line-${ex.lineNumber}`}
+                  style={{ textDecoration: "none", color: "red" }}
+                >
+                  {ex.message} (Line: {ex.lineNumber})
+                </a>
+              </strong>
+              <button
+                onClick={() => toggleExpand(index)}
+                style={{ marginLeft: "10px", cursor: "pointer" }}
+              >
+                {expanded[index] ? "Hide Stack Trace" : "Show Stack Trace"}
+              </button>
+              {expanded[index] && (
+                <pre style={{ color: "gray" }}>{ex.stackTrace.join("\n")}</pre>
+              )}
               <p style={{ color: "blue" }}>{ex.causedBy}</p>
             </li>
           ))}
         </ul>
       </div>
       <h2>Full Log:</h2>
-      <pre ref={logRef} style={{ backgroundColor: "#f4f4f4", padding: "10px", maxHeight: "400px", overflow: "auto" }}>
-        {logContent.map((lineObj) => (
-          <div key={lineObj.number} id={`line-${lineObj.number}`}>
-            <span style={{ color: "blue" }}>{lineObj.number.toString().padStart(4, " ")}: </span>
-            <span style={{ color: lineObj.text.startsWith("com.swisslog") ? "red" : "black" }}>{lineObj.text}</span>
+      <pre
+        style={{ backgroundColor: "#f4f4f4", padding: "10px" }}
+      >
+        {logContent.split("\n").map((line, idx) => (
+          <div key={idx} id={`line-${idx + 1}`}>
+            <span style={{ color: "gray" }}>{idx + 1}:</span> {line}
           </div>
         ))}
       </pre>
