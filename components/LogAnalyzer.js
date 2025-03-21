@@ -1,77 +1,67 @@
-import { useState } from "react";
+import React, { useState } from "react";
+import "tailwindcss/tailwind.css";
 
-export default function LogAnalyzer() {
-  const [logText, setLogText] = useState("");
-  const [exceptions, setExceptions] = useState([]);
+const LogAnalyzer = ({ logData }) => {
+  const lines = logData.split("\n");
+  const [selectedLine, setSelectedLine] = useState(null);
+  
+  const exceptions = [];
+  let currentException = null;
 
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target.result;
-      setLogText(text);
-      analyzeLog(text);
-    };
-    reader.readAsText(file);
-  };
-
-  const analyzeLog = (text) => {
-    const lines = text.split("\n");
-    const extractedExceptions = [];
-    let currentException = null;
-    let startLine = null;
-
-    lines.forEach((line, index) => {
-      if (line.includes("com.swisslog")) {
-        if (currentException) {
-          extractedExceptions.push({ ...currentException, end: index });
-        }
-        currentException = { message: line, start: index, stack: [] };
-        startLine = index;
-      } else if (currentException && line.includes("at")) {
-        currentException.stack.push(line);
-      } else if (currentException && line.includes("Caused by")) {
-        currentException.cause = line;
-        extractedExceptions.push({ ...currentException, end: index });
-        currentException = null;
-      }
-    });
-    if (currentException) {
-      extractedExceptions.push({ ...currentException, end: lines.length });
+  lines.forEach((line, index) => {
+    if (line.startsWith("com.swisslog")) {
+      if (currentException) exceptions.push(currentException);
+      currentException = { startLine: index + 1, message: line, details: [line] };
+    } else if (currentException && line.includes("at")) {
+      currentException.details.push(line);
+    } else if (currentException && line.startsWith("Caused by")) {
+      currentException.details.push(line);
+      exceptions.push(currentException);
+      currentException = null;
     }
-    setExceptions(extractedExceptions);
-  };
+  });
 
   return (
-    <div className="p-4 font-mono">
-      <h1 className="text-2xl font-bold">Log Analyzer</h1>
-      <input type="file" onChange={handleFileUpload} className="my-2" />
-      <div className="flex gap-4">
-        <div className="w-1/3">
-          <h2 className="text-xl font-bold">Exception List</h2>
-          <ul className="list-disc list-inside">
+    <div className="p-4">
+      <h1 className="text-3xl font-bold">Log Analyzer</h1>
+      <div className="grid grid-cols-2 gap-4">
+        {/* Exception List */}
+        <div>
+          <h2 className="text-xl font-bold mb-2">Exception List</h2>
+          <ul className="border p-2 bg-gray-100">
             {exceptions.map((ex, idx) => (
               <li
                 key={idx}
-                className="text-red-500 cursor-pointer hover:underline"
-                onClick={() => {
-                  document.getElementById(`line-${ex.start}`)?.scrollIntoView({ behavior: "smooth" });
-                }}
+                className="cursor-pointer text-red-600 hover:underline"
+                onClick={() => setSelectedLine(ex.startLine)}
               >
-                Line {ex.start}: {ex.message}
+                Exception at line {ex.startLine}: {ex.message}
               </li>
             ))}
           </ul>
         </div>
-        <div className="w-2/3 overflow-auto h-[500px] border p-2 bg-gray-100">
-          <h2 className="text-xl font-bold">Full Log</h2>
-          <pre>
-            {logText.split("\n").map((line, index) => (
-              <div key={index} id={`line-${index}`} className="flex gap-2">
-                <span className="text-gray-500">{index + 1}:</span>
-                <span className={line.includes("com.swisslog") ? "text-red-500" : "text-black"}>{line}</span>
+        {/* Full Log */}
+        <div className="border p-2 overflow-auto max-h-[400px]">
+          <h2 className="text-xl font-bold mb-2">Full Log</h2>
+          <pre className="text-sm">
+            {lines.map((line, idx) => (
+              <div
+                key={idx}
+                id={`line-${idx + 1}`}
+                className={`py-1 ${idx + 1 === selectedLine ? "bg-yellow-200" : ""}`}
+              >
+                <span className="text-gray-500">[{idx + 1}]</span> {" "}
+                <span
+                  className={
+                    line.startsWith("com.swisslog")
+                      ? "text-red-600 font-bold"
+                      : line.startsWith("Caused by")
+                      ? "text-blue-600 font-bold"
+                      : "text-black"
+                  }
+                >
+                  {line}
+                </span>
               </div>
             ))}
           </pre>
@@ -79,4 +69,6 @@ export default function LogAnalyzer() {
       </div>
     </div>
   );
-}
+};
+
+export default LogAnalyzer;
