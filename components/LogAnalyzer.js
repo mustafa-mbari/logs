@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
-const LogAnalyzer = () => {
-  const [logContent, setLogContent] = useState("");
+export default function LogAnalyzer() {
+  const [logText, setLogText] = useState("");
   const [exceptions, setExceptions] = useState([]);
 
   const handleFileUpload = (event) => {
@@ -11,7 +11,7 @@ const LogAnalyzer = () => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target.result;
-      setLogContent(text);
+      setLogText(text);
       analyzeLog(text);
     };
     reader.readAsText(file);
@@ -21,55 +21,62 @@ const LogAnalyzer = () => {
     const lines = text.split("\n");
     const extractedExceptions = [];
     let currentException = null;
+    let startLine = null;
 
-    lines.forEach((line) => {
-      if (line.startsWith("####")) {
-        return; // Ignore unimportant lines
-      }
-      if (line.startsWith("com.swisslog")) {
+    lines.forEach((line, index) => {
+      if (line.includes("com.swisslog")) {
         if (currentException) {
-          extractedExceptions.push(currentException);
+          extractedExceptions.push({ ...currentException, end: index });
         }
-        currentException = {
-          message: line,
-          stackTrace: [],
-        };
-      } else if (line.includes("at") && currentException) {
-        currentException.stackTrace.push(line);
-      } else if (line.startsWith("Caused by") && currentException) {
-        currentException.causedBy = line;
-        extractedExceptions.push(currentException);
+        currentException = { message: line, start: index, stack: [] };
+        startLine = index;
+      } else if (currentException && line.includes("at")) {
+        currentException.stack.push(line);
+      } else if (currentException && line.includes("Caused by")) {
+        currentException.cause = line;
+        extractedExceptions.push({ ...currentException, end: index });
         currentException = null;
       }
     });
-
     if (currentException) {
-      extractedExceptions.push(currentException);
+      extractedExceptions.push({ ...currentException, end: lines.length });
     }
-
     setExceptions(extractedExceptions);
   };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>Log Analyzer</h1>
-      <input type="file" accept=".log" onChange={handleFileUpload} />
-      <div style={{ marginTop: "20px" }}>
-        <h2>Exceptions Found:</h2>
-        <ul>
-          {exceptions.map((ex, index) => (
-            <li key={index} style={{ color: "red" }}>
-              <strong>{ex.message}</strong>
-              <pre style={{ color: "gray" }}>{ex.stackTrace.join("\n")}</pre>
-              <p style={{ color: "blue" }}>{ex.causedBy}</p>
-            </li>
-          ))}
-        </ul>
+    <div className="p-4 font-mono">
+      <h1 className="text-2xl font-bold">Log Analyzer</h1>
+      <input type="file" onChange={handleFileUpload} className="my-2" />
+      <div className="flex gap-4">
+        <div className="w-1/3">
+          <h2 className="text-xl font-bold">Exception List</h2>
+          <ul className="list-disc list-inside">
+            {exceptions.map((ex, idx) => (
+              <li
+                key={idx}
+                className="text-red-500 cursor-pointer hover:underline"
+                onClick={() => {
+                  document.getElementById(`line-${ex.start}`)?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                Line {ex.start}: {ex.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="w-2/3 overflow-auto h-[500px] border p-2 bg-gray-100">
+          <h2 className="text-xl font-bold">Full Log</h2>
+          <pre>
+            {logText.split("\n").map((line, index) => (
+              <div key={index} id={`line-${index}`} className="flex gap-2">
+                <span className="text-gray-500">{index + 1}:</span>
+                <span className={line.includes("com.swisslog") ? "text-red-500" : "text-black"}>{line}</span>
+              </div>
+            ))}
+          </pre>
+        </div>
       </div>
-      <h2>Full Log:</h2>
-      <pre style={{ backgroundColor: "#f4f4f4", padding: "10px" }}>{logContent}</pre>
     </div>
   );
-};
-
-export default LogAnalyzer;
+}
