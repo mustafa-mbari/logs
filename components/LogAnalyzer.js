@@ -1,68 +1,75 @@
 import React, { useState } from "react";
 
-export default function LogAnalyzer() {
-  const [logFile, setLogFile] = useState(null);
-  const [logs, setLogs] = useState([]);
+const LogAnalyzer = () => {
+  const [logContent, setLogContent] = useState("");
+  const [exceptions, setExceptions] = useState([]);
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target.result;
-        processLogs(text);
-      };
-      reader.readAsText(file);
-      setLogFile(file.name);
-    }
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      setLogContent(text);
+      analyzeLog(text);
+    };
+    reader.readAsText(file);
   };
 
-  const processLogs = (text) => {
+  const analyzeLog = (text) => {
     const lines = text.split("\n");
-    const parsedLogs = [];
+    const extractedExceptions = [];
     let currentException = null;
 
     lines.forEach((line) => {
       if (line.startsWith("####")) {
-        return; // Ignore lines starting with ####
+        return; // Ignore unimportant lines
       }
-      
-      if (line.includes("com.swisslog")) {
+      if (line.startsWith("com.swisslog")) {
         if (currentException) {
-          parsedLogs.push(currentException);
+          extractedExceptions.push(currentException);
         }
-        currentException = { type: "error", details: [line] };
+        currentException = {
+          message: line,
+          stackTrace: [],
+        };
       } else if (line.includes("at") && currentException) {
-        currentException.details.push(line);
+        currentException.stackTrace.push(line);
       } else if (line.startsWith("Caused by") && currentException) {
-        currentException.details.push(line);
-        parsedLogs.push(currentException);
+        currentException.causedBy = line;
+        extractedExceptions.push(currentException);
         currentException = null;
-      } else {
-        parsedLogs.push({ type: "info", details: [line] });
       }
     });
 
-    setLogs(parsedLogs);
+    if (currentException) {
+      extractedExceptions.push(currentException);
+    }
+
+    setExceptions(extractedExceptions);
   };
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
-      <h1 className="text-xl font-bold mb-4">Log Analyzer</h1>
-      <input type="file" onChange={handleFileUpload} className="mb-4" />
-      {logFile && <p>Analyzing: {logFile}</p>}
-      <div className="bg-white p-4 shadow rounded mt-4">
-        {logs.map((log, index) => (
-          <pre
-            key={index}
-            className={
-              log.type === "error" ? "text-red-500" : "text-gray-700"
-            }
-          >
-            {log.details.join("\n")}
-          </pre>
-        ))}
+    <div style={{ padding: "20px" }}>
+      <h1>Log Analyzer</h1>
+      <input type="file" accept=".log" onChange={handleFileUpload} />
+      <div style={{ marginTop: "20px" }}>
+        <h2>Exceptions Found:</h2>
+        <ul>
+          {exceptions.map((ex, index) => (
+            <li key={index} style={{ color: "red" }}>
+              <strong>{ex.message}</strong>
+              <pre style={{ color: "gray" }}>{ex.stackTrace.join("\n")}</pre>
+              <p style={{ color: "blue" }}>{ex.causedBy}</p>
+            </li>
+          ))}
+        </ul>
       </div>
+      <h2>Full Log:</h2>
+      <pre style={{ backgroundColor: "#f4f4f4", padding: "10px" }}>{logContent}</pre>
     </div>
   );
-}
+};
+
+export default LogAnalyzer;
