@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 
 const LogAnalyzer = () => {
   const [logContent, setLogContent] = useState("");
@@ -6,6 +6,7 @@ const LogAnalyzer = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredLog, setFilteredLog] = useState([]);
   const [expandedExceptions, setExpandedExceptions] = useState({});
+  const logRefs = useRef({}); // Store references to each log line
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
@@ -15,7 +16,7 @@ const LogAnalyzer = () => {
     reader.onload = (e) => {
       const text = e.target.result;
       setLogContent(text);
-      setFilteredLog(text.split("\n")); // عرض كل السجلات أولًا
+      setFilteredLog(text.split("\n")); // Show all logs initially
       analyzeLog(text);
     };
     reader.readAsText(file);
@@ -27,7 +28,7 @@ const LogAnalyzer = () => {
     let currentException = null;
 
     lines.forEach((line, index) => {
-      if (line.startsWith("####")) return; // تجاهل السطور غير المهمة
+      if (line.startsWith("####")) return;
       if (line.startsWith("com.swisslog")) {
         if (currentException) {
           extractedExceptions.push(currentException);
@@ -51,7 +52,7 @@ const LogAnalyzer = () => {
 
   const handleSearch = () => {
     if (searchTerm.trim() === "") {
-      setFilteredLog(logContent.split("\n")); // عرض كل السجلات عند البحث الفارغ
+      setFilteredLog(logContent.split("\n"));
     } else {
       setFilteredLog(
         logContent.split("\n").filter((line) => line.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -70,6 +71,13 @@ const LogAnalyzer = () => {
       ...prev,
       [index]: !prev[index],
     }));
+  };
+
+  const scrollToLine = (lineNumber) => {
+    const lineRef = logRefs.current[lineNumber];
+    if (lineRef) {
+      lineRef.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
   };
 
   return (
@@ -96,23 +104,32 @@ const LogAnalyzer = () => {
           style={{ marginLeft: "10px" }} 
         />
       </header>
-      
+
       <div style={{ marginTop: "20px" }}>
         <h2>Exceptions Found:</h2>
         <ul>
           {exceptions.map((ex, index) => (
-            <li key={index} style={{ color: "red", marginBottom: "10px" }}>
+            <li 
+              key={index} 
+              style={{ color: "red", marginBottom: "10px", cursor: "pointer", textDecoration: "underline" }}
+              onClick={() => scrollToLine(ex.lineNumber)} // Click to scroll
+            >
               <strong>
                 {ex.message} (Line: {ex.lineNumber})
               </strong>
               <button 
-                onClick={() => toggleStackTrace(index)}
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent clicking the exception from also opening stack trace
+                  toggleStackTrace(index);
+                }}
                 style={{ marginLeft: "10px", padding: "3px 8px", border: "none", background: "#007bff", color: "white", borderRadius: "4px", cursor: "pointer" }}
               >
                 {expandedExceptions[index] ? "Hide Stack Trace" : "Show Stack Trace"}
               </button>
               {expandedExceptions[index] && (
-                <pre style={{ color: "gray", background: "#f8f8f8", padding: "5px", borderRadius: "5px" }}>{ex.stackTrace.join("\n")}</pre>
+                <pre style={{ color: "gray", background: "#f8f8f8", padding: "5px", borderRadius: "5px" }}>
+                  {ex.stackTrace.join("\n")}
+                </pre>
               )}
               <p style={{ color: "blue" }}>{ex.causedBy}</p>
             </li>
@@ -120,10 +137,14 @@ const LogAnalyzer = () => {
         </ul>
       </div>
 
-      <h2>Filtered Log:</h2>
-      <pre style={{ backgroundColor: "#f4f4f4", padding: "10px", whiteSpace: "pre-wrap", overflowX: "auto" }}>
-        {filteredLog.map((line, index) => (
-          <div key={index} style={{ color: searchTerm && line.includes(searchTerm) ? "blue" : "black" }}>
+      <h2>Full Log:</h2>
+      <pre style={{ backgroundColor: "#f4f4f4", padding: "10px", whiteSpace: "pre-wrap", overflowX: "auto", maxHeight: "400px", overflowY: "auto" }}>
+        {logContent.split("\n").map((line, index) => (
+          <div 
+            key={index} 
+            ref={(el) => (logRefs.current[index + 1] = el)} // Store reference for scrolling
+            style={{ color: searchTerm && line.includes(searchTerm) ? "blue" : "black", padding: "2px" }}
+          >
             <strong>{index + 1}:</strong> {line}
           </div>
         ))}
