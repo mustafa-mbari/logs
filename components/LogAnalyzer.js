@@ -3,7 +3,7 @@ import React, { useState } from "react";
 const LogAnalyzer = () => {
   const [logContent, setLogContent] = useState("");
   const [exceptions, setExceptions] = useState([]);
-  const [expanded, setExpanded] = useState({});
+  const [searchTerm, setSearchTerm] = useState("");
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
@@ -22,11 +22,9 @@ const LogAnalyzer = () => {
     const lines = text.split("\n");
     const extractedExceptions = [];
     let currentException = null;
-    let lineNumber = 1;
 
-    lines.forEach((line) => {
+    lines.forEach((line, index) => {
       if (line.startsWith("####")) {
-        lineNumber++;
         return; // Ignore unimportant lines
       }
       if (line.startsWith("com.swisslog")) {
@@ -36,7 +34,7 @@ const LogAnalyzer = () => {
         currentException = {
           message: line,
           stackTrace: [],
-          lineNumber: lineNumber,
+          lineNumber: index + 1,
         };
       } else if (line.includes("at") && currentException) {
         currentException.stackTrace.push(line);
@@ -45,7 +43,6 @@ const LogAnalyzer = () => {
         extractedExceptions.push(currentException);
         currentException = null;
       }
-      lineNumber++;
     });
 
     if (currentException) {
@@ -55,54 +52,37 @@ const LogAnalyzer = () => {
     setExceptions(extractedExceptions);
   };
 
-  const toggleExpand = (index) => {
-    setExpanded((prev) => ({
-      ...prev,
-      [index]: !prev[index],
-    }));
-  };
-
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>Log Analyzer</h1>
-      <input type="file" accept=".log" onChange={handleFileUpload} />
-      <div style={{ marginTop: "20px" }}>
+    <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
+      {/* Header with Search Bar */}
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#333", color: "white", padding: "10px 20px", borderRadius: "5px" }}>
+        <h1 style={{ margin: 0 }}>Log Analyzer</h1>
+        <input
+          type="text"
+          placeholder="Search logs..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{ padding: "5px", borderRadius: "5px", border: "none" }}
+        />
+      </header>
+
+      <input type="file" accept=".log" onChange={handleFileUpload} style={{ margin: "20px 0" }} />
+      <div>
         <h2>Exceptions Found:</h2>
         <ul>
           {exceptions.map((ex, index) => (
             <li key={index} style={{ color: "red" }}>
               <strong>
-                <a
-                  href={`#line-${ex.lineNumber}`}
-                  style={{ textDecoration: "none", color: "red" }}
-                >
-                  {ex.message} (Line: {ex.lineNumber})
-                </a>
+                {ex.message} (Line: {ex.lineNumber})
               </strong>
-              <button
-                onClick={() => toggleExpand(index)}
-                style={{ marginLeft: "10px", cursor: "pointer" }}
-              >
-                {expanded[index] ? "Hide Stack Trace" : "Show Stack Trace"}
-              </button>
-              {expanded[index] && (
-                <pre style={{ color: "gray" }}>{ex.stackTrace.join("\n")}</pre>
-              )}
+              <pre style={{ color: "gray" }}>{ex.stackTrace.join("\n")}</pre>
               <p style={{ color: "blue" }}>{ex.causedBy}</p>
             </li>
           ))}
         </ul>
       </div>
       <h2>Full Log:</h2>
-      <pre
-        style={{ backgroundColor: "#f4f4f4", padding: "10px" }}
-      >
-        {logContent.split("\n").map((line, idx) => (
-          <div key={idx} id={`line-${idx + 1}`}>
-            <span style={{ color: "gray" }}>{idx + 1}:</span> {line}
-          </div>
-        ))}
-      </pre>
+      <pre style={{ backgroundColor: "#f4f4f4", padding: "10px", whiteSpace: "pre-wrap" }}>{logContent}</pre>
     </div>
   );
 };
