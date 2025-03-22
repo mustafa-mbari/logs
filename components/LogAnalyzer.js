@@ -4,6 +4,7 @@ const LogAnalyzer = () => {
   const [logContent, setLogContent] = useState("");
   const [exceptions, setExceptions] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [expandedExceptions, setExpandedExceptions] = useState({});
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
@@ -52,37 +53,55 @@ const LogAnalyzer = () => {
     setExceptions(extractedExceptions);
   };
 
+  const toggleStackTrace = (index) => {
+    setExpandedExceptions((prev) => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
+  };
+
   return (
     <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
-      {/* Header with Search Bar */}
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#333", color: "white", padding: "10px 20px", borderRadius: "5px" }}>
-        <h1 style={{ margin: 0 }}>Log Analyzer</h1>
-        <input
-          type="text"
-          placeholder="Search logs..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ padding: "5px", borderRadius: "5px", border: "none" }}
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#282c34", color: "white", padding: "10px 20px", borderRadius: "8px" }}>
+        <h1>Log Analyzer</h1>
+        <input 
+          type="text" 
+          placeholder="Search logs..." 
+          value={searchTerm} 
+          onChange={(e) => setSearchTerm(e.target.value)} 
+          style={{ padding: "5px", borderRadius: "4px", border: "1px solid #ddd" }}
         />
       </header>
-
-      <input type="file" accept=".log" onChange={handleFileUpload} style={{ margin: "20px 0" }} />
-      <div>
+      <div style={{ marginTop: "20px" }}>
         <h2>Exceptions Found:</h2>
         <ul>
           {exceptions.map((ex, index) => (
-            <li key={index} style={{ color: "red" }}>
+            <li key={index} style={{ color: "red", marginBottom: "10px" }}>
               <strong>
                 {ex.message} (Line: {ex.lineNumber})
               </strong>
-              <pre style={{ color: "gray" }}>{ex.stackTrace.join("\n")}</pre>
+              <button 
+                onClick={() => toggleStackTrace(index)}
+                style={{ marginLeft: "10px", padding: "3px 8px", border: "none", background: "#007bff", color: "white", borderRadius: "4px", cursor: "pointer" }}
+              >
+                {expandedExceptions[index] ? "Hide Stack Trace" : "Show Stack Trace"}
+              </button>
+              {expandedExceptions[index] && (
+                <pre style={{ color: "gray", background: "#f8f8f8", padding: "5px", borderRadius: "5px" }}>{ex.stackTrace.join("\n")}</pre>
+              )}
               <p style={{ color: "blue" }}>{ex.causedBy}</p>
             </li>
           ))}
         </ul>
       </div>
       <h2>Full Log:</h2>
-      <pre style={{ backgroundColor: "#f4f4f4", padding: "10px", whiteSpace: "pre-wrap" }}>{logContent}</pre>
+      <pre style={{ backgroundColor: "#f4f4f4", padding: "10px", whiteSpace: "pre-wrap", overflowX: "auto" }}>
+        {logContent.split("\n").map((line, index) => (
+          <div key={index} style={{ color: searchTerm && line.includes(searchTerm) ? "blue" : "black" }}>
+            <strong>{index + 1}:</strong> {line}
+          </div>
+        ))}
+      </pre>
     </div>
   );
 };
