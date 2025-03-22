@@ -127,9 +127,17 @@ const LogAnalyzer = () => {
                 {expandedExceptions[index] ? "Hide Stack Trace" : "Show Stack Trace"}
               </button>
               {expandedExceptions[index] && (
-                <pre style={{ color: "gray", background: "#f8f8f8", padding: "5px", borderRadius: "5px" }}>
-                  {ex.stackTrace.join("\n")}
-                </pre>
+                <pre style={{ 
+                  color: "black", 
+                  background: "#f8f8f8", 
+                  padding: "5px", 
+                  borderRadius: "5px", 
+                  userSelect: "text", // السماح بالتحديد فقط
+                  cursor: "default", // جعل المؤشر عادياً وليس على شكل رابط
+                  textDecoration: "none", // إزالة أي خط تحت النص
+                            }}>
+                {ex.stackTrace.join("\n")}
+              </pre>
               )}
               <p style={{ color: "blue" }}>{ex.causedBy}</p>
             </li>
