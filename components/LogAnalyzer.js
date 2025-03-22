@@ -71,6 +71,12 @@ const LogAnalyzer = () => {
           onChange={(e) => setSearchTerm(e.target.value)} 
           style={{ padding: "5px", borderRadius: "4px", border: "1px solid #ddd" }}
         />
+        <input 
+          type="file" 
+          accept=".txt,.log" 
+          onChange={handleFileUpload} 
+          style={{ marginLeft: "10px" }} 
+        />
       </header>
       <div style={{ marginTop: "20px" }}>
         <h2>Exceptions Found:</h2>
@@ -96,7 +102,7 @@ const LogAnalyzer = () => {
       </div>
       <h2>Full Log:</h2>
       <pre style={{ backgroundColor: "#f4f4f4", padding: "10px", whiteSpace: "pre-wrap", overflowX: "auto" }}>
-        {logContent.split("\n").map((line, index) => (
+        {logContent.split("\n").filter(line => line.toLowerCase().includes(searchTerm.toLowerCase())).map((line, index) => (
           <div key={index} style={{ color: searchTerm && line.includes(searchTerm) ? "blue" : "black" }}>
             <strong>{index + 1}:</strong> {line}
           </div>
